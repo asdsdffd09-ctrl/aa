@@ -6,8 +6,7 @@ import os
 # 1. 초기화
 pygame.init()
 
-# 2. 화면 설정 (가상 디스플레이 대응을 위한 환경 변수 설정)
-# 깃허브 codespaces 등에서 실행 시 에러 방지용
+# 2. 화면 설정
 if "DISPLAY" not in os.environ:
     os.environ["SDL_VIDEODRIVER"] = "dummy" 
 
@@ -25,20 +24,23 @@ GREEN = (100, 255, 100)
 PINK = (255, 182, 193)
 BROWN = (222, 184, 135)
 
-# 4. 폰트 설정 (시스템 폰트가 없을 경우를 대비해 기본 폰트 사용)
+# 4. 폰트 설정 (한글 지원 폰트 리스트)
 def get_font(size):
-    try:
-        # 시스템에 한글 폰트가 없을 확률이 높으므로 pygame 기본 폰트 사용 시도
-        return pygame.font.SysFont("notosanscjkjp, malgungothic, applesdgothicneo", size)
-    except:
-        return pygame.font.Font(None, size) # 폰트가 없으면 기본 폰트(English only)
+    # 시스템에 설치된 한글 폰트 후보들
+    font_names = ["malgungothic", "applesdgothicneo", "notosanscjkjp", "nanumgothic", "맑은고딕"]
+    available_fonts = pygame.font.get_fonts()
+    
+    for f in font_names:
+        if f in available_fonts:
+            return pygame.font.SysFont(f, size)
+    return pygame.font.SysFont("arial", size) # 한글 폰트가 없으면 기본 폰트
 
-font = get_font(40)
+font = get_font(50)
 small_font = get_font(25)
 
-# 5. 게임 변수
-animals = ["Koala", "Cat", "Dog"] # 한글 폰트 깨짐 방지를 위해 영어 병기 권장
-foods = {"Koala": "Leaf", "Cat": "Churu", "Dog": "Bone"}
+# 5. 게임 변수 (한글로 변경)
+animals = ["코알라", "고양이", "강아지"]
+foods = {"코알라": "나뭇잎", "고양이": "츄르", "강아지": "개뼈다귀"}
 score = 0
 current_animal = random.choice(animals)
 
@@ -85,24 +87,25 @@ while running:
         
         given_food = ""
         if event.type == pygame.MOUSEBUTTONDOWN:
-            if leaf_rect.collidepoint(event.pos): given_food = "Leaf"
-            elif churu_rect.collidepoint(event.pos): given_food = "Churu"
-            elif bone_rect.collidepoint(event.pos): given_food = "Bone"
+            if leaf_rect.collidepoint(event.pos): given_food = "나뭇잎"
+            elif churu_rect.collidepoint(event.pos): given_food = "츄르"
+            elif bone_rect.collidepoint(event.pos): given_food = "개뼈다귀"
             
             if special_food_active and special_food_rect.collidepoint(event.pos):
                 score += random.randint(-10, 10)
                 special_food_active = False
 
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_1: given_food = "Leaf"
-            elif event.key == pygame.K_2: given_food = "Churu"
-            elif event.key == pygame.K_3: given_food = "Bone"
+            if event.key == pygame.K_1: given_food = "나뭇잎"
+            elif event.key == pygame.K_2: given_food = "츄르"
+            elif event.key == pygame.K_3: given_food = "개뼈다귀"
 
         if given_food:
             if foods[current_animal] == given_food:
                 score += 5
             else:
                 score -= 5
+            # 먹이를 준 후 새로운 동물을 랜덤으로 선택
             current_animal = random.choice(animals)
 
     if not special_food_active and random.random() < 0.01:
@@ -112,16 +115,18 @@ while running:
     if special_food_active and (current_time - special_food_timer > 5):
         special_food_active = False
 
-    draw_text(f"Score: {score}", 20, 20)
-    draw_text(f"Animal: [ {current_animal} ]", 400, 200, center=True)
-    draw_text(f"Feed the {current_animal}!", 400, 260, color=GRAY, center=True)
+    # 화면 표시 정보
+    draw_text(f"점수: {score}", 20, 20)
+    draw_text(f"[ {current_animal} ]", 400, 200, center=True)
+    draw_text(f"{current_animal}에게 먹이를 주세요!", 400, 270, color=GRAY, center=True)
     
-    draw_button(leaf_rect, "1. Leaf", GREEN)
-    draw_button(churu_rect, "2. Churu", PINK)
-    draw_button(bone_rect, "3. Bone", BROWN)
+    # 버튼 텍스트 한글화
+    draw_button(leaf_rect, "1. 나뭇잎", GREEN)
+    draw_button(churu_rect, "2. 츄르", PINK)
+    draw_button(bone_rect, "3. 개뼈다귀", BROWN)
 
     if special_food_active:
-        draw_button(special_food_rect, "Random!", GOLD)
+        draw_button(special_food_rect, "랜덤!", GOLD)
 
     pygame.display.flip()
     clock.tick(60)
