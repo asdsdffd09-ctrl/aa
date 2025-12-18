@@ -1,0 +1,129 @@
+import pygame
+import random
+import time
+
+# 초기화
+pygame.init()
+
+# 화면 설정
+screen_width = 800
+screen_height = 600
+screen = pygame.display.set_mode((screen_width, screen_height))
+pygame.display.set_caption("동물 먹이 주기 게임")
+
+# 색상 및 폰트
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+GOLD = (255, 215, 0)
+GRAY = (200, 200, 200)
+GREEN = (100, 255, 100) # 잎 버튼 색상
+PINK = (255, 182, 193)  # 츄르 버튼 색상
+BROWN = (222, 184, 135) # 개껌 버튼 색상
+
+# 폰트 설정 (한글 깨짐 방지를 위해 시스템 폰트 확인 필요)
+font = pygame.font.SysFont("malgungothic", 30)
+small_font = pygame.font.SysFont("malgungothic", 20)
+
+# 게임 변수
+animals = ["코알라", "고양이", "강아지"]
+foods = {"코알라": "잎", "고양이": "츄르", "강아지": "개껌"}
+score = 0
+current_animal = random.choice(animals)
+
+# 먹이 버튼 설정 (x, y, 가로, 세로)
+leaf_rect = pygame.Rect(150, 400, 150, 60)
+churu_rect = pygame.Rect(325, 400, 150, 60)
+bone_rect = pygame.Rect(500, 400, 150, 60)
+
+# 사료 버튼 변수
+special_food_active = False
+special_food_timer = 0
+special_food_rect = pygame.Rect(350, 500, 100, 50)
+
+def draw_text(text, x, y, color=BLACK):
+    img = font.render(text, True, color)
+    screen.blit(img, (x, y))
+
+def draw_button(rect, text, color):
+    pygame.draw.rect(screen, color, rect, border_radius=10)
+    pygame.draw.rect(screen, BLACK, rect, 2, border_radius=10) # 테두리
+    text_img = small_font.render(text, True, BLACK)
+    text_rect = text_img.get_rect(center=rect.center)
+    screen.blit(text_img, text_rect)
+
+# 게임 루프
+running = True
+clock = pygame.time.Clock()
+
+while running:
+    screen.fill(WHITE)
+    current_time = time.time()
+    mouse_pos = pygame.mouse.get_pos()
+
+    # 이벤트 처리
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+        
+        # 마우스 클릭 처리
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            given_food = ""
+            
+            # 일반 먹이 버튼 클릭 감지
+            if leaf_rect.collidepoint(event.pos): given_food = "잎"
+            elif churu_rect.collidepoint(event.pos): given_food = "츄르"
+            elif bone_rect.collidepoint(event.pos): given_food = "개껌"
+            
+            # 먹이 결과 계산
+            if given_food:
+                if foods[current_animal] == given_food:
+                    score += 5
+                else:
+                    score -= 5
+                current_animal = random.choice(animals)
+
+            # 사료 버튼 클릭 감지
+            if special_food_active and special_food_rect.collidepoint(event.pos):
+                bonus = random.randint(-10, 10)
+                score += bonus
+                special_food_active = False
+
+        # 키보드 조작도 유지 (1: 잎, 2: 츄르, 3: 개껌)
+        if event.type == pygame.KEYDOWN:
+            given_food = ""
+            if event.key == pygame.K_1: given_food = "잎"
+            elif event.key == pygame.K_2: given_food = "츄르"
+            elif event.key == pygame.K_3: given_food = "개껌"
+
+            if given_food:
+                if foods[current_animal] == given_food:
+                    score += 5
+                else:
+                    score -= 5
+                current_animal = random.choice(animals)
+
+    # 사료 버튼 등장 로직 (확률 조정 가능)
+    if not special_food_active and random.random() < 0.005:
+        special_food_active = True
+        special_food_timer = current_time
+
+    if special_food_active and (current_time - special_food_timer > 5):
+        special_food_active = False
+
+    # 화면 그리기
+    draw_text(f"현재 점수: {score}", 20, 20)
+    draw_text(f"배고픈 동물: [ {current_animal} ]", 280, 180)
+    
+    # 고정 먹이 버튼 그리기
+    draw_button(leaf_rect, "1. 잎", GREEN)
+    draw_button(churu_rect, "2. 츄르", PINK)
+    draw_button(bone_rect, "3. 개껌", BROWN)
+
+    # 사료 버튼 그리기
+    if special_food_active:
+        draw_button(special_food_rect, "랜덤 사료!", GOLD)
+
+    pygame.display.update()
+    clock.tick(30)
+
+pygame.quit()
