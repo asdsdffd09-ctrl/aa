@@ -1,166 +1,120 @@
-import pygame
-import random
-import time
-import os
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>심플 슬라이딩 퍼즐</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f0f2f5; }
+        h1 { color: #333; }
+        /* 퍼즐 판 스타일 */
+        #puzzle-board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-template-rows: repeat(3, 100px);
+            gap: 10px;
+            background-color: #bbada0;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        /* 각 조각 스타일 */
+        .tile {
+            width: 100px;
+            height: 100px;
+            background-color: #eee4da;
+            color: #776e65;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            user-select: none;
+        }
+        /* 빈 칸 스타일 */
+        .tile.empty { background-color: #cdc1b4; cursor: default; }
+        button { margin-top: 20px; padding: 10px 20px; font-size: 1rem; cursor: pointer; }
+    </style>
+</head>
+<body>
 
-# 1. 초기화
-pygame.init()
+    <h1>슬라이딩 퍼즐</h1>
+    <div id="puzzle-board"></div>
+    <button onclick="shuffleGame()">게임 섞기</button>
 
-# 2. 화면 설정
-screen_width = 800
-screen_height = 600
-screen = pygame.display.set_mode((screen_width, screen_height))
-pygame.display.set_caption("동물 먹이 주기 게임")
+    <script>
+        const boardElement = document.getElementById('puzzle-board');
+        let tiles = [1, 2, 3, 4, 5, 6, 7, 8, null]; // null은 빈 칸
 
-# 3. 색상 설정
-WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-GRAY = (200, 200, 200)
-GOLD = (255, 215, 0)
-GREEN = (150, 255, 150)
-PINK = (255, 182, 193)
-BROWN = (210, 180, 140)
-RED = (255, 100, 100)
-BLUE = (100, 149, 237)
+        // 보드 그리기 함수
+        function renderBoard() {
+            boardElement.innerHTML = '';
+            tiles.forEach((tile, index) => {
+                const tileDiv = document.createElement('div');
+                tileDiv.classList.add('tile');
+                if (tile === null) {
+                    tileDiv.classList.add('empty');
+                    tileDiv.textContent = '';
+                } else {
+                    tileDiv.textContent = tile;
+                    tileDiv.addEventListener('click', () => moveTile(index));
+                }
+                boardElement.appendChild(tileDiv);
+            });
+        }
 
-# 4. 폰트 설정
-def get_font(size):
-    font_names = ["malgungothic", "applesdgothicneo", "nanumgothic", "notosanscjkjp"]
-    available_fonts = pygame.font.get_fonts()
-    for f in font_names:
-        if f in available_fonts:
-            return pygame.font.SysFont(f, size)
-    return pygame.font.SysFont("arial", size)
+        // 타일 이동 로직
+        function moveTile(index) {
+            const emptyIndex = tiles.indexOf(null);
+            const row = Math.floor(index / 3);
+            const col = index % 3;
+            const emptyRow = Math.floor(emptyIndex / 3);
+            const emptyCol = emptyIndex % 3;
 
-font_large = get_font(60)
-font_medium = get_font(40)
-font_small = get_font(25)
+            // 상하좌우 인접해 있는지 확인
+            const isAdjacent = (Math.abs(row - emptyRow) + Math.abs(col - emptyCol)) === 1;
 
-# 5. 게임 데이터
-# 동물별 배경색 지정 (시각적 효과)
-animal_data = {
-    "코알라": {"food": "나뭇잎", "color": (200, 230, 200)},
-    "고양이": {"food": "츄르", "color": (255, 230, 240)},
-    "강아지": {"food": "개뼈다귀", "color": (255, 245, 225)}
-}
-animals = list(animal_data.keys())
-current_animal = random.choice(animals)
-score = 0
+            if (isAdjacent) {
+                // 위치 교체
+                [tiles[index], tiles[emptyIndex]] = [tiles[emptyIndex], tiles[index]];
+                renderBoard();
+                checkWin();
+            }
+        }
 
-# 피드백 메시지용 변수
-feedback_text = ""
-feedback_timer = 0
+        // 섞기 함수
+        function shuffleGame() {
+            // 단순 무작위 섞기는 풀 수 없는 퍼즐을 만들 수 있으므로 무작위 이동을 반복함
+            for (let i = 0; i < 100; i++) {
+                const emptyIndex = tiles.indexOf(null);
+                const neighbors = getNeighbors(emptyIndex);
+                const randomNeighbor = neighbors[Math.floor(Math.random() * neighbors.length)];
+                [tiles[emptyIndex], tiles[randomNeighbor]] = [tiles[randomNeighbor], tiles[emptyIndex]];
+            }
+            renderBoard();
+        }
 
-# 버튼 설정
-buttons = [
-    {"rect": pygame.Rect(120, 450, 160, 70), "text": "1. 나뭇잎", "color": GREEN, "food": "나뭇잎"},
-    {"rect": pygame.Rect(320, 450, 160, 70), "text": "2. 츄르", "color": PINK, "food": "츄르"},
-    {"rect": pygame.Rect(520, 450, 160, 70), "text": "3. 개뼈다귀", "color": BROWN, "food": "개뼈다귀"}
-]
+        function getNeighbors(index) {
+            const row = Math.floor(index / 3);
+            const col = index % 3;
+            const neighbors = [];
+            if (row > 0) neighbors.push(index - 3);
+            if (row < 2) neighbors.push(index + 3);
+            if (col > 0) neighbors.push(index - 1);
+            if (col < 2) neighbors.push(index + 1);
+            return neighbors;
+        }
 
-special_food_active = False
-special_food_timer = 0
-special_food_rect = pygame.Rect(350, 360, 100, 50)
+        // 승리 확인
+        function checkWin() {
+            const winCondition = [1, 2, 3, 4, 5, 6, 7, 8, null];
+            if (tiles.every((val, index) => val === winCondition[index])) {
+                setTimeout(() => alert('축하합니다! 맞추셨습니다!'), 100);
+            }
+        }
 
-# 그리기 함수들
-def draw_text(text, font_obj, x, y, color=BLACK, center=False):
-    img = font_obj.render(text, True, color)
-    if center:
-        text_rect = img.get_rect(center=(x, y))
-        screen.blit(img, text_rect)
-    else:
-        screen.blit(img, (x, y))
-
-def draw_button(btn_dict):
-    mouse_pos = pygame.mouse.get_pos()
-    rect = btn_dict["rect"]
-    color = btn_dict["color"]
-    
-    # 마우스 오버 효과
-    display_color = tuple(min(255, c + 20) for c in color) if rect.collidepoint(mouse_pos) else color
-    
-    pygame.draw.rect(screen, display_color, rect, border_radius=15)
-    pygame.draw.rect(screen, BLACK, rect, 3, border_radius=15) # 테두리
-    draw_text(btn_dict["text"], font_small, rect.centerx, rect.centery, center=True)
-
-# 6. 메인 루프
-running = True
-clock = pygame.time.Clock()
-
-while running:
-    # 배경색을 현재 동물의 테마색으로 변경
-    screen.fill(animal_data[current_animal]["color"])
-    current_time = pygame.time.get_ticks() / 1000 # 초 단위
-
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
-        
-        user_choice = ""
-        # 마우스 클릭 감지
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            for btn in buttons:
-                if btn["rect"].collidepoint(event.pos):
-                    user_choice = btn["food"]
-            
-            if special_food_active and special_food_rect.collidepoint(event.pos):
-                bonus = random.randint(5, 15)
-                score += bonus
-                feedback_text = f"보너스! +{bonus}"
-                feedback_timer = current_time + 1
-                special_food_active = False
-
-        # 키보드 입력 감지 (1, 2, 3)
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_1: user_choice = "나뭇잎"
-            elif event.key == pygame.K_2: user_choice = "츄르"
-            elif event.key == pygame.K_3: user_choice = "개뼈다귀"
-
-        # 결과 처리
-        if user_choice:
-            if animal_data[current_animal]["food"] == user_choice:
-                score += 10
-                feedback_text = "참 잘했어요! (+10)"
-            else:
-                score -= 5
-                feedback_text = "배가 고파요... (-5)"
-            
-            feedback_timer = current_time + 0.8 # 0.8초간 메시지 표시
-            current_animal = random.choice(animals)
-
-    # 랜덤 스페셜 음식 등장 로직
-    if not special_food_active and random.random() < 0.005:
-        special_food_active = True
-        special_food_timer = current_time
-
-    if special_food_active and (current_time - special_food_timer > 3):
-        special_food_active = False
-
-    # --- 화면 그리기 ---
-    # UI 요소
-    pygame.draw.rect(screen, WHITE, (0, 0, 800, 80)) # 상단 바
-    draw_text(f"현재 점수: {score}", font_medium, 20, 20, BLUE)
-    
-    # 동물 표시 구역
-    draw_text(f"지금 나타난 동물:", font_small, 400, 140, GRAY, center=True)
-    draw_text(current_animal, font_large, 400, 200, BLACK, center=True)
-    draw_text(f"{current_animal}에게 맞는 먹이를 클릭하세요!", font_small, 400, 280, BLACK, center=True)
-
-    # 버튼 그리기
-    for btn in buttons:
-        draw_button(btn)
-
-    # 스페셜 버튼
-    if special_food_active:
-        pygame.draw.ellipse(screen, GOLD, special_food_rect)
-        draw_text("간식!", font_small, special_food_rect.centerx, special_food_rect.centery, center=True)
-
-    # 피드백 메시지 표시
-    if current_time < feedback_timer:
-        color = GREEN if "잘했어요" in feedback_text or "보너스" in feedback_text else RED
-        draw_text(feedback_text, font_medium, 400, 350, color, center=True)
-
-    pygame.display.flip()
-    clock.tick(60)
-
-pygame.quit()
+        // 초기 실행
+        renderBoard();
+    </script>
+</body>
+</html>
