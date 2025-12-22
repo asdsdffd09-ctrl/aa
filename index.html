@@ -2,119 +2,137 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>심플 슬라이딩 퍼즐</title>
+    <title>코알라 나뭇잎 받기 게임</title>
     <style>
-        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f0f2f5; }
-        h1 { color: #333; }
-        /* 퍼즐 판 스타일 */
-        #puzzle-board {
-            display: grid;
-            grid-template-columns: repeat(3, 100px);
-            grid-template-rows: repeat(3, 100px);
-            gap: 10px;
-            background-color: #bbada0;
-            padding: 10px;
-            border-radius: 8px;
-        }
-        /* 각 조각 스타일 */
-        .tile {
-            width: 100px;
-            height: 100px;
-            background-color: #eee4da;
-            color: #776e65;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 2rem;
-            font-weight: bold;
-            border-radius: 4px;
-            cursor: pointer;
-            user-select: none;
-        }
-        /* 빈 칸 스타일 */
-        .tile.empty { background-color: #cdc1b4; cursor: default; }
-        button { margin-top: 20px; padding: 10px 20px; font-size: 1rem; cursor: pointer; }
+        body { margin: 0; overflow: hidden; background: #e0f7fa; font-family: sans-serif; }
+        canvas { display: block; background: #8bc34a; margin: 0 auto; border: 5px solid #5d4037; }
+        #ui { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); text-align: center; pointer-events: none; }
+        h1 { margin: 0; color: white; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
     </style>
 </head>
 <body>
-
-    <h1>슬라이딩 퍼즐</h1>
-    <div id="puzzle-board"></div>
-    <button onclick="shuffleGame()">게임 섞기</button>
+    <div id="ui">
+        <h1 id="score">점수: 0</h1>
+    </div>
+    <canvas id="gameCanvas"></canvas>
 
     <script>
-        const boardElement = document.getElementById('puzzle-board');
-        let tiles = [1, 2, 3, 4, 5, 6, 7, 8, null]; // null은 빈 칸
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
 
-        // 보드 그리기 함수
-        function renderBoard() {
-            boardElement.innerHTML = '';
-            tiles.forEach((tile, index) => {
-                const tileDiv = document.createElement('div');
-                tileDiv.classList.add('tile');
-                if (tile === null) {
-                    tileDiv.classList.add('empty');
-                    tileDiv.textContent = '';
-                } else {
-                    tileDiv.textContent = tile;
-                    tileDiv.addEventListener('click', () => moveTile(index));
-                }
-                boardElement.appendChild(tileDiv);
+        canvas.width = 400;
+        canvas.height = 600;
+
+        let score = 0;
+        let gameOver = false;
+
+        // 코알라 설정
+        const koala = {
+            x: canvas.width / 2 - 25,
+            y: canvas.height - 70,
+            width: 50,
+            height: 50,
+            color: '#9e9e9e' // 코알라 색상(회색)
+        };
+
+        const items = [];
+        const itemTypes = {
+            LEAF: 'leaf',
+            ENEMY: 'enemy'
+        };
+
+        // 아이템 생성 함수
+        function createItem() {
+            const isLeaf = Math.random() > 0.3; // 70% 확률로 나뭇잎 생성
+            items.push({
+                x: Math.random() * (canvas.width - 30),
+                y: -30,
+                width: 30,
+                height: 30,
+                type: isLeaf ? itemTypes.LEAF : itemTypes.ENEMY,
+                speed: 3 + Math.random() * 3
             });
         }
 
-        // 타일 이동 로직
-        function moveTile(index) {
-            const emptyIndex = tiles.indexOf(null);
-            const row = Math.floor(index / 3);
-            const col = index % 3;
-            const emptyRow = Math.floor(emptyIndex / 3);
-            const emptyCol = emptyIndex % 3;
+        // 마우스 이동 이벤트
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            koala.x = e.clientX - rect.left - koala.width / 2;
+            
+            // 화면 밖으로 나가지 않게 조절
+            if (koala.x < 0) koala.x = 0;
+            if (koala.x > canvas.width - koala.width) koala.x = canvas.width - koala.width;
+        });
 
-            // 상하좌우 인접해 있는지 확인
-            const isAdjacent = (Math.abs(row - emptyRow) + Math.abs(col - emptyCol)) === 1;
+        function update() {
+            if (gameOver) return;
 
-            if (isAdjacent) {
-                // 위치 교체
-                [tiles[index], tiles[emptyIndex]] = [tiles[emptyIndex], tiles[index]];
-                renderBoard();
-                checkWin();
-            }
+            // 일정 간격으로 아이템 생성
+            if (Math.random() < 0.03) createItem();
+
+            items.forEach((item, index) => {
+                item.y += item.speed;
+
+                // 충돌 감지
+                if (item.x < koala.x + koala.width &&
+                    item.x + item.width > koala.x &&
+                    item.y < koala.y + koala.height &&
+                    item.y + item.height > koala.y) {
+                    
+                    if (item.type === itemTypes.LEAF) {
+                        score += 10;
+                        scoreElement.innerText = `점수: ${score}`;
+                        items.splice(index, 1);
+                    } else {
+                        gameOver = true;
+                        alert(`게임 오버! 최종 점수: ${score}\n다시 시작하려면 확인을 누르세요.`);
+                        location.reload();
+                    }
+                }
+
+                // 화면 밖으로 나간 아이템 제거
+                if (item.y > canvas.height) {
+                    items.splice(index, 1);
+                }
+            });
         }
 
-        // 섞기 함수
-        function shuffleGame() {
-            // 단순 무작위 섞기는 풀 수 없는 퍼즐을 만들 수 있으므로 무작위 이동을 반복함
-            for (let i = 0; i < 100; i++) {
-                const emptyIndex = tiles.indexOf(null);
-                const neighbors = getNeighbors(emptyIndex);
-                const randomNeighbor = neighbors[Math.floor(Math.random() * neighbors.length)];
-                [tiles[emptyIndex], tiles[randomNeighbor]] = [tiles[randomNeighbor], tiles[emptyIndex]];
-            }
-            renderBoard();
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 코알라 그리기 (단순화된 형태)
+            ctx.fillStyle = koala.color;
+            ctx.beginPath();
+            ctx.arc(koala.x + 25, koala.y + 25, 25, 0, Math.PI * 2); // 몸통
+            ctx.fill();
+            ctx.fillStyle = '#000';
+            ctx.fillRect(koala.x + 15, koala.y + 15, 5, 5); // 눈
+            ctx.fillRect(koala.x + 30, koala.y + 15, 5, 5);
+
+            // 아이템 그리기
+            items.forEach(item => {
+                ctx.fillStyle = item.type === itemTypes.LEAF ? '#4caf50' : '#f44336';
+                if (item.type === itemTypes.LEAF) {
+                    // 나뭇잎 모양
+                    ctx.beginPath();
+                    ctx.ellipse(item.x + 15, item.y + 15, 15, 8, Math.PI / 4, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    // 적(폭탄/돌) 모양
+                    ctx.beginPath();
+                    ctx.rect(item.x, item.y, item.width, item.height);
+                    ctx.fill();
+                }
+            });
+
+            requestAnimationFrame(() => {
+                update();
+                draw();
+            });
         }
 
-        function getNeighbors(index) {
-            const row = Math.floor(index / 3);
-            const col = index % 3;
-            const neighbors = [];
-            if (row > 0) neighbors.push(index - 3);
-            if (row < 2) neighbors.push(index + 3);
-            if (col > 0) neighbors.push(index - 1);
-            if (col < 2) neighbors.push(index + 1);
-            return neighbors;
-        }
-
-        // 승리 확인
-        function checkWin() {
-            const winCondition = [1, 2, 3, 4, 5, 6, 7, 8, null];
-            if (tiles.every((val, index) => val === winCondition[index])) {
-                setTimeout(() => alert('축하합니다! 맞추셨습니다!'), 100);
-            }
-        }
-
-        // 초기 실행
-        renderBoard();
+        draw();
     </script>
 </body>
 </html>
