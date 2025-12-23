@@ -116,8 +116,8 @@
             <h1>환영합니다, <span id="displayNick"></span>님!</h1>
             <p>
                 <b>초록 잎(🍃)</b>을 먹어 점수를 올리세요.<br>
-                <b>황금 잎(🌟)</b>은 5점이지만 나타날 확률이 낮아요!<br>
-                점수가 오를수록 아이템이 빨라지니 주의하세요!
+                <b>황금 잎(🌟)</b>은 5점이지만 확률이 1%입니다!<br>
+                <span style="color: #ffeb3b;">점수가 높아질수록 속도가 기하급수적으로 빨라집니다!</span>
             </p>
             <button id="startBtn" class="main-btn">게임 시작하기</button>
         </div>
@@ -158,15 +158,14 @@
         y: canvas.height - 70,
         width: 50,
         height: 50,
-        speed: 8 // 코알라 이동 속도 약간 상향
+        speed: 8
     };
 
-    // 아이템 정보 정의
     const itemInfo = {
-        leaf: { emoji: '🍃', color: '#2ecc71', score: 1, isBad: false },
-        gold_leaf: { emoji: '🌟', color: '#f1c40f', score: 5, isBad: false },
-        stone: { emoji: '🪨', color: '#7f8c8d', score: 0, isBad: true },
-        fire: { emoji: '🔥', color: '#e74c3c', score: 0, isBad: true }
+        leaf: { emoji: '🍃', score: 1, isBad: false },
+        gold_leaf: { emoji: '🌟', score: 5, isBad: false },
+        stone: { emoji: '🪨', score: 0, isBad: true },
+        fire: { emoji: '🔥', score: 0, isBad: true }
     };
 
     const keys = {};
@@ -206,20 +205,20 @@
         const rand = Math.random();
         let selected;
 
-        // 확률 설정
-        if (rand < 0.05) {
-            // 5% 확률: 황금 잎
+        // [확률 조정] 황금 잎(🌟) 확률 1% (0.01)
+        if (rand < 0.01) {
             selected = itemInfo.gold_leaf;
         } else {
-            // 나머지 95% 확률을 3등분 (약 31.6% 씩)
+            // 나머지 99% 확률을 3등분
             const restRand = Math.random();
             if (restRand < 0.33) selected = itemInfo.leaf;
             else if (restRand < 0.66) selected = itemInfo.stone;
             else selected = itemInfo.fire;
         }
 
-        // 속도 계산: 점수가 높을수록 기본 속도(baseSpeed)가 증가함
-        const baseSpeed = 3 + (score * 0.15); 
+        // [속도 조정] 점수가 많아질수록 기하급수적으로 빨라짐
+        // 기본 속도 3에 점수당 0.2씩 추가 (0.15에서 0.2로 상향하여 더 체감되게 수정)
+        const baseSpeed = 3 + (score * 0.2); 
         
         items.push({
             x: Math.random() * (canvas.width - 40) + 5,
@@ -227,7 +226,7 @@
             width: 35,
             height: 35,
             ...selected,
-            speed: baseSpeed + (Math.random() * 2) // 각 아이템마다 약간의 속도 편차
+            speed: baseSpeed + (Math.random() * 1.5)
         });
     }
 
@@ -245,15 +244,14 @@
         if (keys["ArrowLeft"] && koala.x > 0) koala.x -= koala.speed;
         if (keys["ArrowRight"] && koala.x < canvas.width - koala.width) koala.x += koala.speed;
 
-        // 아이템 생성 주기 (점수가 높아질수록 더 자주 생성될 수 있음)
-        const spawnRate = 0.03 + (score / 2000);
-        if (Math.random() < Math.min(spawnRate, 0.09)) createItem();
+        // 아이템 생성 주기도 점수에 따라 약간씩 빨라짐
+        const spawnRate = 0.03 + (score / 1500);
+        if (Math.random() < Math.min(spawnRate, 0.12)) createItem();
 
         for (let i = items.length - 1; i >= 0; i--) {
             const s = items[i];
             s.y += s.speed;
 
-            // 충돌 판정
             if (s.x < koala.x + koala.width && s.x + s.width > koala.x &&
                 s.y < koala.y + koala.height && s.y + s.height > koala.y) {
                 
@@ -279,7 +277,7 @@
         ctx.textAlign = "center";
         ctx.fillText("🐨", koala.x + 25, koala.y + 42);
 
-        // 아이템 (이모티콘으로 출력)
+        // 아이템
         items.forEach(s => {
             ctx.font = "30px Arial";
             ctx.fillText(s.emoji, s.x + 15, s.y + 25);
