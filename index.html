@@ -23,6 +23,8 @@
             max-width: 100%;
             height: auto;
         }
+        .container { position: relative; }
+        
         .controls {
             display: flex;
             gap: 20px;
@@ -43,7 +45,6 @@
             justify-content: center;
             align-items: center;
             user-select: none;
-            -webkit-user-select: none;
             cursor: pointer;
             box-shadow: 0 5px #3e2723;
         }
@@ -52,15 +53,16 @@
             transform: translateY(3px);
             background: #795548;
         }
-        /* 재시작 버튼 스타일 */
-        #restartBtn {
-            display: none;
+
+        /* 중앙 UI 버튼 스타일 (시작 & 재시작) */
+        .overlay-btn {
             position: absolute;
             top: 60%;
             left: 50%;
             transform: translate(-50%, -50%);
             padding: 15px 30px;
             font-size: 20px;
+            font-weight: bold;
             background-color: #2ecc71;
             color: white;
             border: none;
@@ -69,7 +71,7 @@
             box-shadow: 0 4px #27ae60;
             z-index: 10;
         }
-        #restartBtn:active {
+        .overlay-btn:active {
             box-shadow: 0 2px #27ae60;
             transform: translate(-50%, -48%);
         }
@@ -77,9 +79,10 @@
 </head>
 <body>
 
-    <div style="position: relative;">
+    <div class="container">
         <canvas id="gameCanvas" width="400" height="600"></canvas>
-        <button id="restartBtn">다시 시작하기</button>
+        <button id="startBtn" class="overlay-btn">게임 시작하기</button>
+        <button id="restartBtn" class="overlay-btn" style="display: none;">다시 시작하기</button>
     </div>
 
     <div class="controls">
@@ -90,11 +93,13 @@
 <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
+    const startBtn = document.getElementById("startBtn");
     const restartBtn = document.getElementById("restartBtn");
 
     let score = 0;
     let gameOver = false;
-    let gameSpeed = 1; // 난이도 조절 변수
+    let gameStarted = false; // 게임 시작 상태 확인 변수
+    let items = [];
 
     const koala = {
         x: canvas.width / 2 - 25,
@@ -104,7 +109,6 @@
         speed: 7
     };
 
-    let items = [];
     const itemTypes = [
         { type: 'leaf', color: '#2ecc71', score: 1, isBad: false },
         { type: 'gold_leaf', color: '#f1c40f', score: 5, isBad: false },
@@ -113,24 +117,20 @@
     ];
 
     const keys = {};
-    
     window.addEventListener("keydown", e => keys[e.code] = true);
     window.addEventListener("keyup", e => keys[e.code] = false);
 
-    // 터치/클릭 버튼 이벤트
     const setupBtn = (btn, key) => {
         btn.addEventListener("mousedown", () => keys[key] = true);
         btn.addEventListener("mouseup", () => keys[key] = false);
         btn.addEventListener("touchstart", (e) => { e.preventDefault(); keys[key] = true; });
         btn.addEventListener("touchend", (e) => { e.preventDefault(); keys[key] = false; });
     };
-
     setupBtn(document.getElementById("leftBtn"), "ArrowLeft");
     setupBtn(document.getElementById("rightBtn"), "ArrowRight");
 
     function createItem() {
         const randomType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
-        // 점수에 따라 기본 속도 증가 (최대 10까지)
         const baseSpeed = 2 + (score / 10); 
         items.push({
             x: Math.random() * (canvas.width - 30),
@@ -142,6 +142,14 @@
         });
     }
 
+    // 초기 게임 시작 함수
+    function startGame() {
+        gameStarted = true;
+        startBtn.style.display = "none";
+        requestAnimationFrame(gameLoop);
+    }
+
+    // 게임 재시작 함수
     function resetGame() {
         score = 0;
         gameOver = false;
@@ -152,12 +160,11 @@
     }
 
     function update() {
-        if (gameOver) return;
+        if (!gameStarted || gameOver) return;
 
         if (keys["ArrowLeft"] && koala.x > 0) koala.x -= koala.speed;
         if (keys["ArrowRight"] && koala.x < canvas.width - koala.width) koala.x += koala.speed;
 
-        // 점수가 높을수록 아이템 생성 확률 미세하게 증가
         const spawnRate = 0.03 + (score / 1000);
         if (Math.random() < Math.min(spawnRate, 0.08)) createItem();
 
@@ -165,7 +172,6 @@
             const s = items[i];
             s.y += s.speed;
 
-            // 충돌 감지
             if (s.x < koala.x + koala.width && s.x + s.width > koala.x &&
                 s.y < koala.y + koala.height && s.y + s.height > koala.y) {
                 
@@ -178,7 +184,6 @@
                 }
                 continue;
             }
-
             if (s.y > canvas.height) items.splice(i, 1);
         }
     }
@@ -186,14 +191,14 @@
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // 코알라 그리기
+        // 코알라
         ctx.fillStyle = "#95a5a6";
         ctx.fillRect(koala.x, koala.y, koala.width, koala.height);
         ctx.font = "30px Arial";
         ctx.textAlign = "center";
         ctx.fillText("🐨", koala.x + 25, koala.y + 35);
 
-        // 아이템 그리기
+        // 아이템
         items.forEach(s => {
             ctx.fillStyle = s.color;
             ctx.beginPath();
@@ -201,17 +206,28 @@
             ctx.fill();
         });
 
-        // 점수 표시
+        // 점수 및 레벨
         ctx.fillStyle = "white";
         ctx.font = "bold 20px Arial";
         ctx.textAlign = "left";
         ctx.fillText(`Score: ${score}`, 20, 40);
-
-        // 레벨 표시 (속도 증가 체감용)
         const level = Math.floor(score / 10) + 1;
         ctx.textAlign = "right";
         ctx.fillText(`Lv. ${level}`, canvas.width - 20, 40);
 
+        // [시작 화면 UI]
+        if (!gameStarted) {
+            ctx.fillStyle = "rgba(0,0,0,0.5)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "white";
+            ctx.textAlign = "center";
+            ctx.font = "bold 35px Arial";
+            ctx.fillText("코알라 잎 먹기", canvas.width / 2, canvas.height / 2 - 40);
+            ctx.font = "18px Arial";
+            ctx.fillText("돌과 불을 피해서 잎을 먹으세요!", canvas.width / 2, canvas.height / 2);
+        }
+
+        // [게임 오버 UI]
         if (gameOver) {
             ctx.fillStyle = "rgba(0,0,0,0.7)";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -227,14 +243,17 @@
     function gameLoop() {
         update();
         draw();
-        if (!gameOver) {
+        if (gameStarted && !gameOver) {
             requestAnimationFrame(gameLoop);
         }
     }
 
+    // 이벤트 리스너
+    startBtn.addEventListener("click", startGame);
     restartBtn.addEventListener("click", resetGame);
 
-    gameLoop();
+    // 초기 화면을 그리기 위해 draw() 한 번 실행
+    draw();
 </script>
 </body>
 </html>
