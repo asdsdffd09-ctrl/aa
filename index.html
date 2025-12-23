@@ -12,7 +12,7 @@
             align-items: center; 
             height: 100vh; 
             background: #e0e0e0; 
-            font-family: 'Malgun Gothic', sans-serif; 
+            font-family: sans-serif; 
             touch-action: manipulation;
             overflow: hidden;
         }
@@ -54,23 +54,9 @@
             background: #795548;
         }
 
-        /* 닉네임 입력창 스타일 */
-        #nickInput {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            padding: 10px;
-            font-size: 18px;
-            border-radius: 5px;
-            border: 2px solid #5d4037;
-            text-align: center;
-            z-index: 15;
-        }
-
         .overlay-btn {
             position: absolute;
-            top: 65%;
+            top: 60%;
             left: 50%;
             transform: translate(-50%, -50%);
             padding: 15px 30px;
@@ -94,7 +80,6 @@
 
     <div class="container">
         <canvas id="gameCanvas" width="400" height="600"></canvas>
-        <input type="text" id="nickInput" placeholder="닉네임 입력 (5자 이내)" maxlength="5">
         <button id="startBtn" class="overlay-btn">게임 시작하기</button>
         <button id="restartBtn" class="overlay-btn" style="display: none;">다시 시작하기</button>
     </div>
@@ -109,28 +94,25 @@
     const ctx = canvas.getContext("2d");
     const startBtn = document.getElementById("startBtn");
     const restartBtn = document.getElementById("restartBtn");
-    const nickInput = document.getElementById("nickInput");
 
     let score = 0;
-    let nickname = "";
     let gameOver = false;
-    let gameStarted = false;
+    let gameStarted = false; 
     let items = [];
 
     const koala = {
-        x: canvas.width / 2 - 25,
+        x: canvas.width / 2 - 30,
         y: canvas.height - 80,
         width: 60,
         height: 60,
         speed: 8
     };
 
-    // 아이템 설정: 잎과 꽃(장해물)
     const itemTypes = [
         { type: 'leaf', emoji: '🍃', score: 1, isBad: false },
         { type: 'gold_leaf', emoji: '🌟', score: 5, isBad: false },
-        { type: 'flower1', emoji: '🌸', score: 0, isBad: true },
-        { type: 'flower2', emoji: '🌺', score: 0, isBad: true }
+        { type: 'stone', emoji: '🪨', score: 0, isBad: true },
+        { type: 'fire', emoji: '🔥', score: 0, isBad: true }
     ];
 
     const keys = {};
@@ -146,22 +128,48 @@
     setupBtn(document.getElementById("leftBtn"), "ArrowLeft");
     setupBtn(document.getElementById("rightBtn"), "ArrowRight");
 
+    // 도형으로 코알라 그리는 함수
+    function drawKoala(x, y) {
+        // 귀 (왼쪽, 오른쪽)
+        ctx.fillStyle = "#A9A9A9"; // 어두운 회색
+        ctx.beginPath();
+        ctx.arc(x + 10, y + 15, 15, 0, Math.PI * 2);
+        ctx.arc(x + 50, y + 15, 15, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 얼굴
+        ctx.fillStyle = "#D3D3D3"; // 밝은 회색
+        ctx.beginPath();
+        ctx.arc(x + 30, y + 35, 25, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 눈
+        ctx.fillStyle = "#333";
+        ctx.beginPath();
+        ctx.arc(x + 20, y + 30, 3, 0, Math.PI * 2);
+        ctx.arc(x + 40, y + 30, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 코 (타원형)
+        ctx.fillStyle = "#4A4A4A";
+        ctx.beginPath();
+        ctx.ellipse(x + 30, y + 42, 6, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
     function createItem() {
         const randomType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
         const baseSpeed = 2 + (score / 15); 
         items.push({
             x: Math.random() * (canvas.width - 40) + 20,
             y: -40,
-            size: 35,
             ...randomType,
-            speed: (baseSpeed + Math.random() * 2)
+            speed: (baseSpeed + Math.random() * 3)
         });
     }
 
     function startGame() {
-        nickname = nickInput.value.trim() || "코알라";
         gameStarted = true;
-        nickInput.style.display = "none";
         startBtn.style.display = "none";
         requestAnimationFrame(gameLoop);
     }
@@ -170,48 +178,9 @@
         score = 0;
         gameOver = false;
         items = [];
-        koala.x = canvas.width / 2 - 25;
+        koala.x = canvas.width / 2 - 30;
         restartBtn.style.display = "none";
         requestAnimationFrame(gameLoop);
-    }
-
-    // 도형으로 코알라 그리기 함수
-    function drawKoala(x, y) {
-        ctx.save();
-        ctx.translate(x + 30, y + 30);
-        
-        // 귀
-        ctx.fillStyle = "#7f8c8d";
-        ctx.beginPath();
-        ctx.arc(-25, -15, 15, 0, Math.PI * 2); // 왼쪽 귀
-        ctx.arc(25, -15, 15, 0, Math.PI * 2);  // 오른쪽 귀
-        ctx.fill();
-        ctx.fillStyle = "#bdc3c7";
-        ctx.beginPath();
-        ctx.arc(-25, -15, 8, 0, Math.PI * 2); // 귀 안쪽
-        ctx.arc(25, -15, 8, 0, Math.PI * 2);
-        ctx.fill();
-
-        // 얼굴
-        ctx.fillStyle = "#95a5a6";
-        ctx.beginPath();
-        ctx.arc(0, 5, 25, 0, Math.PI * 2);
-        ctx.fill();
-
-        // 눈
-        ctx.fillStyle = "#333";
-        ctx.beginPath();
-        ctx.arc(-10, 0, 3, 0, Math.PI * 2);
-        ctx.arc(10, 0, 3, 0, Math.PI * 2);
-        ctx.fill();
-
-        // 코 (타원형)
-        ctx.fillStyle = "#34495e";
-        ctx.beginPath();
-        ctx.ellipse(0, 10, 6, 10, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.restore();
     }
 
     function update() {
@@ -221,18 +190,16 @@
         if (keys["ArrowRight"] && koala.x < canvas.width - koala.width) koala.x += koala.speed;
 
         const spawnRate = 0.03 + (score / 1500);
-        if (Math.random() < Math.min(spawnRate, 0.07)) createItem();
+        if (Math.random() < Math.min(spawnRate, 0.08)) createItem();
 
         for (let i = items.length - 1; i >= 0; i--) {
             const s = items[i];
             s.y += s.speed;
 
-            // 충돌 판정 (코알라 머리 부분 원형 판정)
-            const dx = s.x - (koala.x + 30);
-            const dy = s.y - (koala.y + 35);
-            const distance = Math.sqrt(dx * dx + dy * dy);
-
-            if (distance < 40) {
+            // 충돌 감지 (아이템 위치가 코알라 범위 안인지 확인)
+            if (s.x > koala.x && s.x < koala.x + koala.width &&
+                s.y > koala.y && s.y < koala.y + koala.height) {
+                
                 if (s.isBad) {
                     gameOver = true;
                     restartBtn.style.display = "block";
@@ -242,29 +209,24 @@
                 }
                 continue;
             }
-            if (s.y > canvas.height + 50) items.splice(i, 1);
+            if (s.y > canvas.height + 40) items.splice(i, 1);
         }
     }
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // 닉네임 표시
-        if (gameStarted) {
-            ctx.fillStyle = "rgba(255,255,255,0.8)";
-            ctx.font = "bold 16px Arial";
-            ctx.textAlign = "center";
-            ctx.fillText(nickname, koala.x + 30, koala.y - 10);
-        }
-
+        // 코알라 그리기
         drawKoala(koala.x, koala.y);
 
+        // 아이템 그리기 (이모티콘)
         items.forEach(s => {
-            ctx.font = `${s.size}px Arial`;
+            ctx.font = "35px Arial";
             ctx.textAlign = "center";
             ctx.fillText(s.emoji, s.x, s.y);
         });
 
+        // 점수 및 레벨
         ctx.fillStyle = "white";
         ctx.font = "bold 20px Arial";
         ctx.textAlign = "left";
@@ -274,15 +236,14 @@
         ctx.fillText(`Lv. ${level}`, canvas.width - 20, 40);
 
         if (!gameStarted) {
-            ctx.fillStyle = "rgba(0,0,0,0.6)";
+            ctx.fillStyle = "rgba(0,0,0,0.5)";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = "white";
             ctx.textAlign = "center";
             ctx.font = "bold 35px Arial";
-            ctx.fillText("코알라 잎 먹기", canvas.width / 2, canvas.height / 2 - 100);
-            ctx.font = "16px Arial";
-            ctx.fillText("닉네임을 입력하고 시작하세요!", canvas.width / 2, canvas.height / 2 - 70);
-            ctx.fillText("🍃/🌟는 점수, 🌸/🌺는 게임 오버!", canvas.width / 2, canvas.height / 2 + 50);
+            ctx.fillText("코알라 잎 먹기", canvas.width / 2, canvas.height / 2 - 40);
+            ctx.font = "18px Arial";
+            ctx.fillText("돌🪨과 불🔥을 피해 잎🍃을 먹으세요!", canvas.width / 2, canvas.height / 2);
         }
 
         if (gameOver) {
@@ -291,9 +252,9 @@
             ctx.fillStyle = "white";
             ctx.font = "bold 40px Arial";
             ctx.textAlign = "center";
-            ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 40);
-            ctx.font = "22px Arial";
-            ctx.fillText(`${nickname}님의 최종 점수: ${score}`, canvas.width / 2, canvas.height / 2 + 10);
+            ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 20);
+            ctx.font = "24px Arial";
+            ctx.fillText(`최종 점수: ${score}`, canvas.width / 2, canvas.height / 2 + 30);
         }
     }
 
