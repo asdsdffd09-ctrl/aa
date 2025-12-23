@@ -12,19 +12,61 @@
             align-items: center; 
             height: 100vh; 
             background: #e0e0e0; 
-            font-family: sans-serif; 
+            font-family: 'Malgun Gothic', sans-serif; 
             touch-action: manipulation;
             overflow: hidden;
         }
+        .container { position: relative; width: 400px; height: 600px; }
         canvas { 
             background: #87CEEB; 
             border: 4px solid #5d4037; 
             display: block; 
-            max-width: 100%;
-            height: auto;
+            width: 100%;
+            height: 100%;
         }
-        .container { position: relative; }
         
+        /* 오버레이 공통 스타일 */
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+            z-index: 20;
+        }
+
+        /* 닉네임 입력 폼 스타일 */
+        #nicknameForm input {
+            padding: 12px;
+            font-size: 18px;
+            border-radius: 8px;
+            border: none;
+            margin-bottom: 20px;
+            width: 200px;
+            text-align: center;
+        }
+
+        .main-btn {
+            padding: 15px 30px;
+            font-size: 20px;
+            font-weight: bold;
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px #27ae60;
+            transition: 0.2s;
+        }
+        .main-btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px #27ae60;
+        }
+
         .controls {
             display: flex;
             gap: 20px;
@@ -33,8 +75,7 @@
             justify-content: center;
         }
         .btn {
-            width: 80px;
-            height: 80px;
+            width: 80px; height: 80px;
             background: #5d4037;
             color: white;
             border: none;
@@ -51,37 +92,42 @@
         .btn:active {
             box-shadow: 0 2px #3e2723;
             transform: translateY(3px);
-            background: #795548;
         }
-
-        .overlay-btn {
-            position: absolute;
-            top: 60%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            padding: 15px 30px;
-            font-size: 20px;
-            font-weight: bold;
-            background-color: #2ecc71;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            box-shadow: 0 4px #27ae60;
-            z-index: 10;
-        }
-        .overlay-btn:active {
-            box-shadow: 0 2px #27ae60;
-            transform: translate(-50%, -48%);
-        }
+        
+        h1 { margin-bottom: 10px; font-size: 32px; }
+        p { margin-bottom: 25px; line-height: 1.5; }
+        .hide { display: none !important; }
     </style>
 </head>
 <body>
 
     <div class="container">
         <canvas id="gameCanvas" width="400" height="600"></canvas>
-        <button id="startBtn" class="overlay-btn">게임 시작하기</button>
-        <button id="restartBtn" class="overlay-btn" style="display: none;">다시 시작하기</button>
+
+        <div id="nicknamePage" class="overlay">
+            <h1>🐨 코알라 게임</h1>
+            <p>사용하실 닉네임을 입력해주세요!</p>
+            <div id="nicknameForm">
+                <input type="text" id="nickInput" placeholder="닉네임 (5자 이내)" maxlength="5">
+                <br>
+                <button id="toWelcomeBtn" class="main-btn">입력 완료</button>
+            </div>
+        </div>
+
+        <div id="welcomePage" class="overlay hide">
+            <h1>환영합니다, <span id="displayNick"></span>님!</h1>
+            <p>
+                떨어지는 <b>초록 잎</b>을 먹어 점수를 올리세요.<br>
+                <b>돌</b>과 <b>불</b>에 닿으면 게임이 끝납니다!
+            </p>
+            <button id="startBtn" class="main-btn">게임 시작하기</button>
+        </div>
+
+        <div id="gameOverPage" class="overlay hide">
+            <h1>GAME OVER</h1>
+            <p id="finalScoreText"></p>
+            <button id="restartBtn" class="main-btn">다시 도전하기</button>
+        </div>
     </div>
 
     <div class="controls">
@@ -92,27 +138,36 @@
 <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
-    const startBtn = document.getElementById("startBtn");
-    const restartBtn = document.getElementById("restartBtn");
+    
+    // UI 요소들
+    const pages = {
+        nick: document.getElementById("nicknamePage"),
+        welcome: document.getElementById("welcomePage"),
+        gameOver: document.getElementById("gameOverPage")
+    };
+    const nickInput = document.getElementById("nickInput");
+    const displayNick = document.getElementById("displayNick");
+    const finalScoreText = document.getElementById("finalScoreText");
 
     let score = 0;
+    let nickname = "";
     let gameOver = false;
-    let gameStarted = false; 
+    let gameStarted = false;
     let items = [];
 
     const koala = {
-        x: canvas.width / 2 - 30,
-        y: canvas.height - 80,
-        width: 60,
-        height: 60,
-        speed: 8
+        x: canvas.width / 2 - 25,
+        y: canvas.height - 70,
+        width: 50,
+        height: 50,
+        speed: 7
     };
 
     const itemTypes = [
-        { type: 'leaf', emoji: '🍃', score: 1, isBad: false },
-        { type: 'gold_leaf', emoji: '🌟', score: 5, isBad: false },
-        { type: 'stone', emoji: '🪨', score: 0, isBad: true },
-        { type: 'fire', emoji: '🔥', score: 0, isBad: true }
+        { type: 'leaf', color: '#2ecc71', score: 1, isBad: false },
+        { type: 'gold_leaf', color: '#f1c40f', score: 5, isBad: false },
+        { type: 'stone', color: '#7f8c8d', score: 0, isBad: true },
+        { type: 'fire', color: '#e74c3c', score: 0, isBad: true }
     ];
 
     const keys = {};
@@ -128,58 +183,49 @@
     setupBtn(document.getElementById("leftBtn"), "ArrowLeft");
     setupBtn(document.getElementById("rightBtn"), "ArrowRight");
 
-    // 도형으로 코알라 그리는 함수
-    function drawKoala(x, y) {
-        // 귀 (왼쪽, 오른쪽)
-        ctx.fillStyle = "#A9A9A9"; // 어두운 회색
-        ctx.beginPath();
-        ctx.arc(x + 10, y + 15, 15, 0, Math.PI * 2);
-        ctx.arc(x + 50, y + 15, 15, 0, Math.PI * 2);
-        ctx.fill();
+    // [페이지 이동 로직]
+    
+    // 1 -> 2단계 이동
+    document.getElementById("toWelcomeBtn").addEventListener("click", () => {
+        const val = nickInput.value.trim();
+        if(!val) { alert("닉네임을 입력해주세요!"); return; }
+        nickname = val;
+        displayNick.innerText = nickname;
+        pages.nick.classList.add("hide");
+        pages.welcome.classList.remove("hide");
+    });
 
-        // 얼굴
-        ctx.fillStyle = "#D3D3D3"; // 밝은 회색
-        ctx.beginPath();
-        ctx.arc(x + 30, y + 35, 25, 0, Math.PI * 2);
-        ctx.fill();
+    // 2 -> 게임 시작
+    document.getElementById("startBtn").addEventListener("click", () => {
+        pages.welcome.classList.add("hide");
+        gameStarted = true;
+        requestAnimationFrame(gameLoop);
+    });
 
-        // 눈
-        ctx.fillStyle = "#333";
-        ctx.beginPath();
-        ctx.arc(x + 20, y + 30, 3, 0, Math.PI * 2);
-        ctx.arc(x + 40, y + 30, 3, 0, Math.PI * 2);
-        ctx.fill();
-
-        // 코 (타원형)
-        ctx.fillStyle = "#4A4A4A";
-        ctx.beginPath();
-        ctx.ellipse(x + 30, y + 42, 6, 10, 0, 0, Math.PI * 2);
-        ctx.fill();
-    }
+    // 재시작
+    document.getElementById("restartBtn").addEventListener("click", () => {
+        pages.gameOver.classList.add("hide");
+        resetGame();
+    });
 
     function createItem() {
         const randomType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
         const baseSpeed = 2 + (score / 15); 
         items.push({
-            x: Math.random() * (canvas.width - 40) + 20,
-            y: -40,
+            x: Math.random() * (canvas.width - 30),
+            y: -30,
+            width: 30,
+            height: 30,
             ...randomType,
             speed: (baseSpeed + Math.random() * 3)
         });
-    }
-
-    function startGame() {
-        gameStarted = true;
-        startBtn.style.display = "none";
-        requestAnimationFrame(gameLoop);
     }
 
     function resetGame() {
         score = 0;
         gameOver = false;
         items = [];
-        koala.x = canvas.width / 2 - 30;
-        restartBtn.style.display = "none";
+        koala.x = canvas.width / 2 - 25;
         requestAnimationFrame(gameLoop);
     }
 
@@ -189,73 +235,57 @@
         if (keys["ArrowLeft"] && koala.x > 0) koala.x -= koala.speed;
         if (keys["ArrowRight"] && koala.x < canvas.width - koala.width) koala.x += koala.speed;
 
-        const spawnRate = 0.03 + (score / 1500);
+        const spawnRate = 0.03 + (score / 1000);
         if (Math.random() < Math.min(spawnRate, 0.08)) createItem();
 
         for (let i = items.length - 1; i >= 0; i--) {
             const s = items[i];
             s.y += s.speed;
 
-            // 충돌 감지 (아이템 위치가 코알라 범위 안인지 확인)
-            if (s.x > koala.x && s.x < koala.x + koala.width &&
-                s.y > koala.y && s.y < koala.y + koala.height) {
+            if (s.x < koala.x + koala.width && s.x + s.width > koala.x &&
+                s.y < koala.y + koala.height && s.y + s.height > koala.y) {
                 
                 if (s.isBad) {
                     gameOver = true;
-                    restartBtn.style.display = "block";
+                    finalScoreText.innerHTML = `<b>${nickname}</b>님의 최종 점수: <b>${score}</b>`;
+                    pages.gameOver.classList.remove("hide");
                 } else {
                     score += s.score;
                     items.splice(i, 1);
                 }
                 continue;
             }
-            if (s.y > canvas.height + 40) items.splice(i, 1);
+            if (s.y > canvas.height) items.splice(i, 1);
         }
     }
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // 코알라 그리기
-        drawKoala(koala.x, koala.y);
+        // 코알라
+        ctx.font = "40px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("🐨", koala.x + 25, koala.y + 40);
 
-        // 아이템 그리기 (이모티콘)
+        // 아이템
         items.forEach(s => {
-            ctx.font = "35px Arial";
-            ctx.textAlign = "center";
-            ctx.fillText(s.emoji, s.x, s.y);
+            ctx.fillStyle = s.color;
+            ctx.beginPath();
+            ctx.arc(s.x + 15, s.y + 15, 15, 0, Math.PI * 2);
+            ctx.fill();
         });
 
-        // 점수 및 레벨
+        // 상단 정보 바
+        ctx.fillStyle = "rgba(0,0,0,0.3)";
+        ctx.fillRect(0, 0, canvas.width, 50);
+        
         ctx.fillStyle = "white";
-        ctx.font = "bold 20px Arial";
+        ctx.font = "bold 18px sans-serif";
         ctx.textAlign = "left";
-        ctx.fillText(`Score: ${score}`, 20, 40);
-        const level = Math.floor(score / 10) + 1;
+        ctx.fillText(`👤 ${nickname}`, 15, 32);
+        
         ctx.textAlign = "right";
-        ctx.fillText(`Lv. ${level}`, canvas.width - 20, 40);
-
-        if (!gameStarted) {
-            ctx.fillStyle = "rgba(0,0,0,0.5)";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "white";
-            ctx.textAlign = "center";
-            ctx.font = "bold 35px Arial";
-            ctx.fillText("코알라 잎 먹기", canvas.width / 2, canvas.height / 2 - 40);
-            ctx.font = "18px Arial";
-            ctx.fillText("돌🪨과 불🔥을 피해 잎🍃을 먹으세요!", canvas.width / 2, canvas.height / 2);
-        }
-
-        if (gameOver) {
-            ctx.fillStyle = "rgba(0,0,0,0.7)";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "white";
-            ctx.font = "bold 40px Arial";
-            ctx.textAlign = "center";
-            ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 20);
-            ctx.font = "24px Arial";
-            ctx.fillText(`최종 점수: ${score}`, canvas.width / 2, canvas.height / 2 + 30);
-        }
+        ctx.fillText(`Score: ${score}`, canvas.width - 15, 32);
     }
 
     function gameLoop() {
@@ -266,9 +296,7 @@
         }
     }
 
-    startBtn.addEventListener("click", startGame);
-    restartBtn.addEventListener("click", resetGame);
-
+    // 초기 배경 렌더링
     draw();
 </script>
 </body>
