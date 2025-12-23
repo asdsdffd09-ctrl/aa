@@ -116,7 +116,7 @@
             <h1>환영합니다, <span id="displayNick"></span>님!</h1>
             <p>
                 <b>초록 잎(🍃)</b>을 먹어 점수를 올리세요.<br>
-                <b>황금 잎(🌟)</b>은 5점이지만 확률이 1%입니다!<br>
+                <b>황금 잎(🌟)</b>은 5점이지만 확률이 0.5%입니다!<br>
                 <span style="color: #ffeb3b;">점수가 높아질수록 속도가 기하급수적으로 빨라집니다!</span>
             </p>
             <button id="startBtn" class="main-btn">게임 시작하기</button>
@@ -205,19 +205,16 @@
         const rand = Math.random();
         let selected;
 
-        // [확률 조정] 황금 잎(🌟) 확률 1% (0.01)
-        if (rand < 0.01) {
+        // [확률 조정] 황금 잎(🌟) 확률 0.5% (0.005)
+        if (rand < 0.005) {
             selected = itemInfo.gold_leaf;
         } else {
-            // 나머지 99% 확률을 3등분
             const restRand = Math.random();
             if (restRand < 0.33) selected = itemInfo.leaf;
             else if (restRand < 0.66) selected = itemInfo.stone;
             else selected = itemInfo.fire;
         }
 
-        // [속도 조정] 점수가 많아질수록 기하급수적으로 빨라짐
-        // 기본 속도 3에 점수당 0.2씩 추가 (0.15에서 0.2로 상향하여 더 체감되게 수정)
         const baseSpeed = 3 + (score * 0.2); 
         
         items.push({
@@ -244,7 +241,6 @@
         if (keys["ArrowLeft"] && koala.x > 0) koala.x -= koala.speed;
         if (keys["ArrowRight"] && koala.x < canvas.width - koala.width) koala.x += koala.speed;
 
-        // 아이템 생성 주기도 점수에 따라 약간씩 빨라짐
         const spawnRate = 0.03 + (score / 1500);
         if (Math.random() < Math.min(spawnRate, 0.12)) createItem();
 
@@ -272,18 +268,15 @@
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // 코알라
         ctx.font = "45px Arial";
         ctx.textAlign = "center";
         ctx.fillText("🐨", koala.x + 25, koala.y + 42);
 
-        // 아이템
         items.forEach(s => {
             ctx.font = "30px Arial";
             ctx.fillText(s.emoji, s.x + 15, s.y + 25);
         });
 
-        // 상단 정보 바
         ctx.fillStyle = "rgba(0,0,0,0.3)";
         ctx.fillRect(0, 0, canvas.width, 50);
         
