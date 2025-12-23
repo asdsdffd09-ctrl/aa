@@ -12,7 +12,7 @@
             align-items: center; 
             height: 100vh; 
             background: #e0e0e0; 
-            font-family: sans-serif; 
+            font-family: 'Malgun Gothic', sans-serif; 
             touch-action: manipulation;
             overflow: hidden;
         }
@@ -54,10 +54,23 @@
             background: #795548;
         }
 
-        /* 중앙 UI 버튼 스타일 (시작 & 재시작) */
+        /* 닉네임 입력창 스타일 */
+        #nickInput {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 10px;
+            font-size: 18px;
+            border-radius: 5px;
+            border: 2px solid #5d4037;
+            text-align: center;
+            z-index: 15;
+        }
+
         .overlay-btn {
             position: absolute;
-            top: 60%;
+            top: 65%;
             left: 50%;
             transform: translate(-50%, -50%);
             padding: 15px 30px;
@@ -81,6 +94,7 @@
 
     <div class="container">
         <canvas id="gameCanvas" width="400" height="600"></canvas>
+        <input type="text" id="nickInput" placeholder="닉네임 입력 (5자 이내)" maxlength="5">
         <button id="startBtn" class="overlay-btn">게임 시작하기</button>
         <button id="restartBtn" class="overlay-btn" style="display: none;">다시 시작하기</button>
     </div>
@@ -95,25 +109,28 @@
     const ctx = canvas.getContext("2d");
     const startBtn = document.getElementById("startBtn");
     const restartBtn = document.getElementById("restartBtn");
+    const nickInput = document.getElementById("nickInput");
 
     let score = 0;
+    let nickname = "";
     let gameOver = false;
-    let gameStarted = false; // 게임 시작 상태 확인 변수
+    let gameStarted = false;
     let items = [];
 
     const koala = {
         x: canvas.width / 2 - 25,
-        y: canvas.height - 70,
-        width: 50,
-        height: 50,
-        speed: 7
+        y: canvas.height - 80,
+        width: 60,
+        height: 60,
+        speed: 8
     };
 
+    // 아이템 설정: 잎과 꽃(장해물)
     const itemTypes = [
-        { type: 'leaf', color: '#2ecc71', score: 1, isBad: false },
-        { type: 'gold_leaf', color: '#f1c40f', score: 5, isBad: false },
-        { type: 'stone', color: '#7f8c8d', score: 0, isBad: true },
-        { type: 'fire', color: '#e74c3c', score: 0, isBad: true }
+        { type: 'leaf', emoji: '🍃', score: 1, isBad: false },
+        { type: 'gold_leaf', emoji: '🌟', score: 5, isBad: false },
+        { type: 'flower1', emoji: '🌸', score: 0, isBad: true },
+        { type: 'flower2', emoji: '🌺', score: 0, isBad: true }
     ];
 
     const keys = {};
@@ -131,25 +148,24 @@
 
     function createItem() {
         const randomType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
-        const baseSpeed = 2 + (score / 10); 
+        const baseSpeed = 2 + (score / 15); 
         items.push({
-            x: Math.random() * (canvas.width - 30),
-            y: -30,
-            width: 30,
-            height: 30,
+            x: Math.random() * (canvas.width - 40) + 20,
+            y: -40,
+            size: 35,
             ...randomType,
-            speed: (baseSpeed + Math.random() * 3)
+            speed: (baseSpeed + Math.random() * 2)
         });
     }
 
-    // 초기 게임 시작 함수
     function startGame() {
+        nickname = nickInput.value.trim() || "코알라";
         gameStarted = true;
+        nickInput.style.display = "none";
         startBtn.style.display = "none";
         requestAnimationFrame(gameLoop);
     }
 
-    // 게임 재시작 함수
     function resetGame() {
         score = 0;
         gameOver = false;
@@ -159,22 +175,64 @@
         requestAnimationFrame(gameLoop);
     }
 
+    // 도형으로 코알라 그리기 함수
+    function drawKoala(x, y) {
+        ctx.save();
+        ctx.translate(x + 30, y + 30);
+        
+        // 귀
+        ctx.fillStyle = "#7f8c8d";
+        ctx.beginPath();
+        ctx.arc(-25, -15, 15, 0, Math.PI * 2); // 왼쪽 귀
+        ctx.arc(25, -15, 15, 0, Math.PI * 2);  // 오른쪽 귀
+        ctx.fill();
+        ctx.fillStyle = "#bdc3c7";
+        ctx.beginPath();
+        ctx.arc(-25, -15, 8, 0, Math.PI * 2); // 귀 안쪽
+        ctx.arc(25, -15, 8, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 얼굴
+        ctx.fillStyle = "#95a5a6";
+        ctx.beginPath();
+        ctx.arc(0, 5, 25, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 눈
+        ctx.fillStyle = "#333";
+        ctx.beginPath();
+        ctx.arc(-10, 0, 3, 0, Math.PI * 2);
+        ctx.arc(10, 0, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 코 (타원형)
+        ctx.fillStyle = "#34495e";
+        ctx.beginPath();
+        ctx.ellipse(0, 10, 6, 10, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+    }
+
     function update() {
         if (!gameStarted || gameOver) return;
 
         if (keys["ArrowLeft"] && koala.x > 0) koala.x -= koala.speed;
         if (keys["ArrowRight"] && koala.x < canvas.width - koala.width) koala.x += koala.speed;
 
-        const spawnRate = 0.03 + (score / 1000);
-        if (Math.random() < Math.min(spawnRate, 0.08)) createItem();
+        const spawnRate = 0.03 + (score / 1500);
+        if (Math.random() < Math.min(spawnRate, 0.07)) createItem();
 
         for (let i = items.length - 1; i >= 0; i--) {
             const s = items[i];
             s.y += s.speed;
 
-            if (s.x < koala.x + koala.width && s.x + s.width > koala.x &&
-                s.y < koala.y + koala.height && s.y + s.height > koala.y) {
-                
+            // 충돌 판정 (코알라 머리 부분 원형 판정)
+            const dx = s.x - (koala.x + 30);
+            const dy = s.y - (koala.y + 35);
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < 40) {
                 if (s.isBad) {
                     gameOver = true;
                     restartBtn.style.display = "block";
@@ -184,29 +242,29 @@
                 }
                 continue;
             }
-            if (s.y > canvas.height) items.splice(i, 1);
+            if (s.y > canvas.height + 50) items.splice(i, 1);
         }
     }
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // 코알라
-        ctx.fillStyle = "#95a5a6";
-        ctx.fillRect(koala.x, koala.y, koala.width, koala.height);
-        ctx.font = "30px Arial";
-        ctx.textAlign = "center";
-        ctx.fillText("🐨", koala.x + 25, koala.y + 35);
+        // 닉네임 표시
+        if (gameStarted) {
+            ctx.fillStyle = "rgba(255,255,255,0.8)";
+            ctx.font = "bold 16px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(nickname, koala.x + 30, koala.y - 10);
+        }
 
-        // 아이템
+        drawKoala(koala.x, koala.y);
+
         items.forEach(s => {
-            ctx.fillStyle = s.color;
-            ctx.beginPath();
-            ctx.arc(s.x + 15, s.y + 15, 15, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.font = `${s.size}px Arial`;
+            ctx.textAlign = "center";
+            ctx.fillText(s.emoji, s.x, s.y);
         });
 
-        // 점수 및 레벨
         ctx.fillStyle = "white";
         ctx.font = "bold 20px Arial";
         ctx.textAlign = "left";
@@ -215,28 +273,27 @@
         ctx.textAlign = "right";
         ctx.fillText(`Lv. ${level}`, canvas.width - 20, 40);
 
-        // [시작 화면 UI]
         if (!gameStarted) {
-            ctx.fillStyle = "rgba(0,0,0,0.5)";
+            ctx.fillStyle = "rgba(0,0,0,0.6)";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = "white";
             ctx.textAlign = "center";
             ctx.font = "bold 35px Arial";
-            ctx.fillText("코알라 잎 먹기", canvas.width / 2, canvas.height / 2 - 40);
-            ctx.font = "18px Arial";
-            ctx.fillText("돌과 불을 피해서 잎을 먹으세요!", canvas.width / 2, canvas.height / 2);
+            ctx.fillText("코알라 잎 먹기", canvas.width / 2, canvas.height / 2 - 100);
+            ctx.font = "16px Arial";
+            ctx.fillText("닉네임을 입력하고 시작하세요!", canvas.width / 2, canvas.height / 2 - 70);
+            ctx.fillText("🍃/🌟는 점수, 🌸/🌺는 게임 오버!", canvas.width / 2, canvas.height / 2 + 50);
         }
 
-        // [게임 오버 UI]
         if (gameOver) {
             ctx.fillStyle = "rgba(0,0,0,0.7)";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = "white";
             ctx.font = "bold 40px Arial";
             ctx.textAlign = "center";
-            ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 20);
-            ctx.font = "24px Arial";
-            ctx.fillText(`최종 점수: ${score}`, canvas.width / 2, canvas.height / 2 + 30);
+            ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 40);
+            ctx.font = "22px Arial";
+            ctx.fillText(`${nickname}님의 최종 점수: ${score}`, canvas.width / 2, canvas.height / 2 + 10);
         }
     }
 
@@ -248,11 +305,9 @@
         }
     }
 
-    // 이벤트 리스너
     startBtn.addEventListener("click", startGame);
     restartBtn.addEventListener("click", resetGame);
 
-    // 초기 화면을 그리기 위해 draw() 한 번 실행
     draw();
 </script>
 </body>
