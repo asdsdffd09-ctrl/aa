@@ -1,154 +1,129 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>코알라의 나뭇잎 식사 (Koala Leaf Catch)</title>
+    <title>Koala Leaf Catch Game</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #e8f5e9; font-family: 'Malgun Gothic', sans-serif; }
-        canvas { display: block; background: #c8e6c9; margin: 0 auto; border: 8px solid #5d4037; border-radius: 10px; cursor: none; }
-        #ui { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); text-align: center; pointer-events: none; }
-        .game-title { font-size: 24px; color: #2e7d32; font-weight: bold; margin-bottom: 5px; }
-        .score-board { font-size: 30px; color: #ffffff; text-shadow: 2px 2px 4px #000; }
+        body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #e0e0e0; font-family: sans-serif; }
+        canvas { background: #87CEEB; border: 4px solid #5d4037; display: block; }
     </style>
 </head>
 <body>
-    <div id="ui">
-        <div class="game-title">🐨 코알라의 나뭇잎 식사</div>
-        <div id="score" class="score-board">점수: 0</div>
-    </div>
-    <canvas id="gameCanvas"></canvas>
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
 
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const scoreElement = document.getElementById('score');
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
 
-        canvas.width = 450;
-        canvas.height = 650;
+    // 게임 상태
+    let score = 0;
+    let gameOver = false;
 
-        let score = 0;
-        let gameOver = false;
+    // 코알라 설정
+    const koala = {
+        x: canvas.width / 2 - 25,
+        y: canvas.height - 70,
+        width: 50,
+        height: 50,
+        speed: 7
+    };
 
-        // 1. 코알라 설정 (마우스/화살표를 따라가는 캐릭터)
-        const koala = {
-            x: canvas.width / 2 - 30,
-            y: canvas.height - 80,
-            width: 60,
-            height: 60,
-            color: '#9e9e9e' 
-        };
+    // 아이템 배열
+    const items = [];
+    const itemTypes = [
+        { type: 'leaf', color: '#2ecc71', score: 1, isBad: false },
+        { type: 'gold_leaf', color: '#f1c40f', score: 5, isBad: false },
+        { type: 'stone', color: '#7f8c8d', score: 0, isBad: true },
+        { type: 'fire', color: '#e74c3c', score: 0, isBad: true }
+    ];
 
-        const items = [];
-        const itemTypes = {
-            LEAF: { color: '#4caf50', label: 'LEAF' }, // 나뭇잎: 점수+1
-            STONE: { color: '#546e7a', label: 'STONE' } // 돌/폭탄: 게임오버
-        };
+    // 키 입력 상태
+    const keys = {};
+    window.addEventListener("keydown", e => keys[e.code] = true);
+    window.addEventListener("keyup", e => keys[e.code] = false);
 
-        // 2. 아이템 생성 (나뭇잎과 방해물 무작위 생성)
-        function createItem() {
-            const isLeaf = Math.random() > 0.4; // 60% 확률로 나뭇잎 생성
-            items.push({
-                x: Math.random() * (canvas.width - 30),
-                y: -40,
-                width: 35,
-                height: 35,
-                type: isLeaf ? 'LEAF' : 'STONE',
-                speed: 3 + Math.random() * 4 // 떨어지는 속도 무작위
-            });
-        }
-
-        // 마우스 이동으로 코알라 조작
-        canvas.addEventListener('mousemove', (e) => {
-            if (gameOver) return;
-            const rect = canvas.getBoundingClientRect();
-            // 코알라의 중심이 마우스를 따라오도록 수정
-            koala.x = e.clientX - rect.left - koala.width / 2;
-            
-            if (koala.x < 0) koala.x = 0;
-            if (koala.x > canvas.width - koala.width) koala.x = canvas.width - koala.width;
+    function createItem() {
+        const randomType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
+        items.push({
+            x: Math.random() * (canvas.width - 30),
+            y: -30,
+            width: 30,
+            height: 30,
+            ...randomType,
+            speed: 2 + Math.random() * 3
         });
+    }
 
-        function update() {
-            if (gameOver) return;
+    function update() {
+        if (gameOver) return;
 
-            if (Math.random() < 0.04) createItem();
+        // 코알라 이동
+        if (keys["ArrowLeft"] && koala.x > 0) koala.x -= koala.speed;
+        if (keys["ArrowRight"] && koala.x < canvas.width - koala.width) koala.x += koala.speed;
 
-            for (let i = items.length - 1; i >= 0; i--) {
-                const item = items[i];
-                item.y += item.speed;
+        // 아이템 처리
+        if (Math.random() < 0.03) createItem();
 
-                // 충돌 감지 로직
-                if (item.x < koala.x + koala.width &&
-                    item.x + item.width > koala.x &&
-                    item.y < koala.y + koala.height &&
-                    item.y + item.height > koala.y) {
-                    
-                    if (item.type === 'LEAF') {
-                        score += 1; // 나뭇잎은 점수 획득
-                        scoreElement.innerText = `점수: ${score}`;
-                        items.splice(i, 1);
-                    } else {
-                        // 돌이나 폭탄을 먹으면 모두 멈추고 게임오버
-                        gameOver = true;
-                        setTimeout(() => {
-                            alert(`🚨 게임 오버! 🚨\n코알라가 돌을 먹었습니다.\n최종 점수: ${score}점`);
-                            location.reload();
-                        }, 10);
-                    }
-                }
+        for (let i = items.length - 1; i >= 0; i--) {
+            const s = items[i];
+            s.y += s.speed;
 
-                if (item.y > canvas.height) {
+            // 충돌 판정
+            if (s.x < koala.x + koala.width && s.x + s.width > koala.x &&
+                s.y < koala.y + koala.height && s.y + s.height > koala.y) {
+                
+                if (s.isBad) {
+                    gameOver = true;
+                } else {
+                    score += s.score;
                     items.splice(i, 1);
                 }
+                continue;
             }
+
+            // 화면 밖으로 나감
+            if (s.y > canvas.height) items.splice(i, 1);
+        }
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 코알라 그리기 (회색 사각형 - 나중에 이미지로 교체 가능)
+        ctx.fillStyle = "#95a5a6";
+        ctx.fillRect(koala.x, koala.y, koala.width, koala.height);
+        ctx.fillStyle = "black";
+        ctx.fillText("🐨", koala.x + 15, koala.y + 30); // 코알라 아이콘
+
+        // 아이템 그리기
+        items.forEach(s => {
+            ctx.fillStyle = s.color;
+            ctx.beginPath();
+            ctx.arc(s.x + 15, s.y + 15, 15, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        // 점수 표시
+        ctx.fillStyle = "white";
+        ctx.font = "20px Arial";
+        ctx.fillText(`Score: ${score}`, 20, 40);
+
+        if (gameOver) {
+            ctx.fillStyle = "rgba(0,0,0,0.5)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "white";
+            ctx.font = "40px Arial";
+            ctx.fillText("GAME OVER", 80, canvas.height / 2);
+            ctx.font = "20px Arial";
+            ctx.fillText("Press F5 to Restart", 110, canvas.height / 2 + 40);
         }
 
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        requestAnimationFrame(() => {
+            update();
+            draw();
+        });
+    }
 
-            // 코알라 그리기
-            // 귀
-            ctx.fillStyle = '#757575';
-            ctx.beginPath();
-            ctx.arc(koala.x + 10, koala.y + 15, 15, 0, Math.PI * 2);
-            ctx.arc(koala.x + 50, koala.y + 15, 15, 0, Math.PI * 2);
-            ctx.fill();
-            // 얼굴
-            ctx.fillStyle = koala.color;
-            ctx.beginPath();
-            ctx.ellipse(koala.x + 30, koala.y + 35, 30, 25, 0, 0, Math.PI * 2);
-            ctx.fill();
-            // 코
-            ctx.fillStyle = '#333';
-            ctx.beginPath();
-            ctx.ellipse(koala.x + 30, koala.y + 40, 8, 12, 0, 0, Math.PI * 2);
-            ctx.fill();
-
-            // 아이템 그리기
-            items.forEach(item => {
-                if (item.type === 'LEAF') {
-                    ctx.fillStyle = itemTypes.LEAF.color;
-                    ctx.beginPath();
-                    ctx.ellipse(item.x + 17, item.y + 17, 18, 10, Math.PI / 4, 0, Math.PI * 2);
-                    ctx.fill();
-                } else {
-                    ctx.fillStyle = itemTypes.STONE.color;
-                    ctx.beginPath();
-                    ctx.arc(item.x + 17, item.y + 17, 15, 0, Math.PI * 2); // 돌 모양
-                    ctx.fill();
-                    // 돌 무늬
-                    ctx.fillStyle = '#37474f';
-                    ctx.fillRect(item.x + 10, item.y + 10, 5, 5);
-                }
-            });
-
-            requestAnimationFrame(() => {
-                update();
-                draw();
-            });
-        }
-
-        draw();
-    </script>
+    draw();
+</script>
 </body>
 </html>
