@@ -25,7 +25,6 @@
             height: 100%;
         }
         
-        /* 오버레이 공통 스타일 */
         .overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -39,7 +38,6 @@
             z-index: 20;
         }
 
-        /* 닉네임 입력 폼 스타일 */
         #nicknameForm input {
             padding: 12px;
             font-size: 18px;
@@ -117,8 +115,9 @@
         <div id="welcomePage" class="overlay hide">
             <h1>환영합니다, <span id="displayNick"></span>님!</h1>
             <p>
-                떨어지는 <b>초록 잎</b>을 먹어 점수를 올리세요.<br>
-                <b>돌</b>과 <b>불</b>에 닿으면 게임이 끝납니다!
+                <b>초록 잎(🍃)</b>을 먹어 점수를 올리세요.<br>
+                <b>황금 잎(🌟)</b>은 5점이지만 나타날 확률이 낮아요!<br>
+                점수가 오를수록 아이템이 빨라지니 주의하세요!
             </p>
             <button id="startBtn" class="main-btn">게임 시작하기</button>
         </div>
@@ -139,7 +138,6 @@
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
     
-    // UI 요소들
     const pages = {
         nick: document.getElementById("nicknamePage"),
         welcome: document.getElementById("welcomePage"),
@@ -160,15 +158,16 @@
         y: canvas.height - 70,
         width: 50,
         height: 50,
-        speed: 7
+        speed: 8 // 코알라 이동 속도 약간 상향
     };
 
-    const itemTypes = [
-        { type: 'leaf', color: '#2ecc71', score: 1, isBad: false },
-        { type: 'gold_leaf', color: '#f1c40f', score: 5, isBad: false },
-        { type: 'stone', color: '#7f8c8d', score: 0, isBad: true },
-        { type: 'fire', color: '#e74c3c', score: 0, isBad: true }
-    ];
+    // 아이템 정보 정의
+    const itemInfo = {
+        leaf: { emoji: '🍃', color: '#2ecc71', score: 1, isBad: false },
+        gold_leaf: { emoji: '🌟', color: '#f1c40f', score: 5, isBad: false },
+        stone: { emoji: '🪨', color: '#7f8c8d', score: 0, isBad: true },
+        fire: { emoji: '🔥', color: '#e74c3c', score: 0, isBad: true }
+    };
 
     const keys = {};
     window.addEventListener("keydown", e => keys[e.code] = true);
@@ -183,9 +182,6 @@
     setupBtn(document.getElementById("leftBtn"), "ArrowLeft");
     setupBtn(document.getElementById("rightBtn"), "ArrowRight");
 
-    // [페이지 이동 로직]
-    
-    // 1 -> 2단계 이동
     document.getElementById("toWelcomeBtn").addEventListener("click", () => {
         const val = nickInput.value.trim();
         if(!val) { alert("닉네임을 입력해주세요!"); return; }
@@ -195,29 +191,43 @@
         pages.welcome.classList.remove("hide");
     });
 
-    // 2 -> 게임 시작
     document.getElementById("startBtn").addEventListener("click", () => {
         pages.welcome.classList.add("hide");
         gameStarted = true;
         requestAnimationFrame(gameLoop);
     });
 
-    // 재시작
     document.getElementById("restartBtn").addEventListener("click", () => {
         pages.gameOver.classList.add("hide");
         resetGame();
     });
 
     function createItem() {
-        const randomType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
-        const baseSpeed = 2 + (score / 15); 
+        const rand = Math.random();
+        let selected;
+
+        // 확률 설정
+        if (rand < 0.05) {
+            // 5% 확률: 황금 잎
+            selected = itemInfo.gold_leaf;
+        } else {
+            // 나머지 95% 확률을 3등분 (약 31.6% 씩)
+            const restRand = Math.random();
+            if (restRand < 0.33) selected = itemInfo.leaf;
+            else if (restRand < 0.66) selected = itemInfo.stone;
+            else selected = itemInfo.fire;
+        }
+
+        // 속도 계산: 점수가 높을수록 기본 속도(baseSpeed)가 증가함
+        const baseSpeed = 3 + (score * 0.15); 
+        
         items.push({
-            x: Math.random() * (canvas.width - 30),
-            y: -30,
-            width: 30,
-            height: 30,
-            ...randomType,
-            speed: (baseSpeed + Math.random() * 3)
+            x: Math.random() * (canvas.width - 40) + 5,
+            y: -40,
+            width: 35,
+            height: 35,
+            ...selected,
+            speed: baseSpeed + (Math.random() * 2) // 각 아이템마다 약간의 속도 편차
         });
     }
 
@@ -235,13 +245,15 @@
         if (keys["ArrowLeft"] && koala.x > 0) koala.x -= koala.speed;
         if (keys["ArrowRight"] && koala.x < canvas.width - koala.width) koala.x += koala.speed;
 
-        const spawnRate = 0.03 + (score / 1000);
-        if (Math.random() < Math.min(spawnRate, 0.08)) createItem();
+        // 아이템 생성 주기 (점수가 높아질수록 더 자주 생성될 수 있음)
+        const spawnRate = 0.03 + (score / 2000);
+        if (Math.random() < Math.min(spawnRate, 0.09)) createItem();
 
         for (let i = items.length - 1; i >= 0; i--) {
             const s = items[i];
             s.y += s.speed;
 
+            // 충돌 판정
             if (s.x < koala.x + koala.width && s.x + s.width > koala.x &&
                 s.y < koala.y + koala.height && s.y + s.height > koala.y) {
                 
@@ -263,16 +275,14 @@
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         // 코알라
-        ctx.font = "40px Arial";
+        ctx.font = "45px Arial";
         ctx.textAlign = "center";
-        ctx.fillText("🐨", koala.x + 25, koala.y + 40);
+        ctx.fillText("🐨", koala.x + 25, koala.y + 42);
 
-        // 아이템
+        // 아이템 (이모티콘으로 출력)
         items.forEach(s => {
-            ctx.fillStyle = s.color;
-            ctx.beginPath();
-            ctx.arc(s.x + 15, s.y + 15, 15, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.font = "30px Arial";
+            ctx.fillText(s.emoji, s.x + 15, s.y + 25);
         });
 
         // 상단 정보 바
@@ -296,7 +306,6 @@
         }
     }
 
-    // 초기 배경 렌더링
     draw();
 </script>
 </body>
